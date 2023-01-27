@@ -1,95 +1,108 @@
-import { Component } from "react";
-import { ToastContainer } from 'react-toastify';
+import { useState, useEffect } from "react";
+import { ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import { Searchbar } from "components/Searchbar/Searchbar";
 import { Message } from "components/Messages/Messages";
 import { ImageGallery } from "components/ImageGallery/ImageGallery";
 import { Button } from "components/Button/Button";
 import { Modal } from "components/Modal/Modal";
 import { Loader } from "components/Loader/Loader";
+import { getImage } from "services/PixabayApi";
 
-import { AppGrid } from './App.styled';
+import { AppGrid } from "./App.styled";
 
+export function App() {
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [images, setImages] = useState([]);
+  const [totalHits, setTotalHits] = useState(null);
+  const [largeImageUrl, setLargeImageUrl] = useState(null);
+  const [loader, setLoader] = useState(false);
 
-export class App extends Component {
+  const hitsPerPage = 12;
 
-  state = {
-    query: '',
-    page: 1,
-    totalHits: null,
-    hitsPerPage: 12,
-    largeImageUrl: null,
-    loader: true,
-  };
-
-  getInputQuery = query => {
-    this.setState({ query, page: 1 })
-  };
-
-  getImagesInfo = totalHits => {
-    this.setState({ totalHits });
-  };
-
-  getLargeImg = url => {
-    this.setState({ largeImageUrl: url });
-  };
-
-  handleClick = () => {
-    this.setState( prevState => ({ page: prevState.page + 1 }));
-  };
-
-  snowMoreImg = () => {
-    const { totalHits, hitsPerPage, page } = this.state;
-    if ( totalHits / hitsPerPage <= page) {
-      return false; 
-    } else {
-      return true;
+  useEffect(() => {
+    if (query) {
+      loadImages();
     }
-  }
 
-  closeModal = () => {
-    this.setState({ largeImageUrl: null, loader: true })
-  }
+    function loadImages() {
+      setLoader(true);
 
-  handleLoad = () => {
-    this.setState({ loader: false })
-  }
+      getImage(query, [page])
+        .then((response) => {
+          setImages((images) => [...images, ...response.data.hits]);
+          setTotalHits(response.data.totalHits);
+        })
+        .catch((e) => {
+          toast.error("error:", e.message);
+        })
+        .finally(() => {
+          setLoader(false);
+        });
+    }
+  }, [query, page]);
 
-  handleError = () => {
-    this.setState({ loader: false })
-  }
+  const getInputQuery = (query) => {
+    setQuery(query);
+    setPage(1);
+    setTotalHits(null);
+    setImages([]);
+  };
 
-  
+  const getImagesInfo = (totalHits) => {
+    setTotalHits(totalHits);
+  };
 
-  render() {
-    const { largeImageUrl, query, page, hitsPerPage } = this.state;
+  const getLargeImg = (url) => {
+    setLargeImageUrl(url);
+    setLoader(true);
+  };
 
-    return(
-      <AppGrid>
-        <Searchbar onSubmit={this.getInputQuery}/>
-        {this.state.totalHits === 0 && (
-          <Message text={`Sorry, no have picture of ${this.state.query}`} />
-        )}
-        <ImageGallery
-          query={query}
-          currentPage={page}
-          getInfo={this.getImagesInfo}
-          hitsPerPage={hitsPerPage}
-          getImgUrl={this.getLargeImg}
-        />
-        {this.snowMoreImg() && <Button onClick={this.handleClick} />}
-        {largeImageUrl && (
-          <Modal closeModal={this.closeModal}>
-            {this.state.loader && <Loader />}
-            <img
-              src={this.state.largeImageUrl}
-              alt=""
-              onLoad={this.handleLoad}
-              onError={this.handleError}
-            />
-          </Modal>
-        )}
-        <ToastContainer/>
-      </AppGrid>
-    )
-  }
+  const handleClick = () => {
+    setPage((state) => state + 1);
+  };
+
+  const snowMoreImg = () => {
+    return totalHits / hitsPerPage <= page ? false : true;
+  };
+
+  const closeModal = () => {
+    setLargeImageUrl(null);
+    setLoader(false);
+  };
+
+  const handleOnError = () => {
+    setLoader(false);
+    toast.error("something went wrong, no image");
+  };
+
+  return (
+    <AppGrid>
+      <Searchbar onSubmit={getInputQuery} />
+      {totalHits === 0 && (
+        <Message text={`Sorry, no have picture of ${query}`} />
+      )}
+      <ImageGallery
+        images={images}
+        loader={loader}
+        getInfo={getImagesInfo}
+        getImgUrl={getLargeImg}
+      />
+      {snowMoreImg() && <Button onClick={handleClick} />}
+      {largeImageUrl && (
+        <Modal closeModal={closeModal}>
+          {loader && <Loader />}
+          <img
+            src={largeImageUrl}
+            alt=""
+            onLoad={() => setLoader(false)}
+            onError={handleOnError}
+          />
+        </Modal>
+      )}
+      <ToastContainer />
+    </AppGrid>
+  );
 }

@@ -1,53 +1,38 @@
-import { Component } from "react";
-import { Overlay, ModalWindow, CloseModalBtn } from './Modal.styled'
-import PropTypes from 'prop-types';
+import { useEffect } from "react";
+import { Overlay, ModalWindow, CloseModalBtn } from "./Modal.styled";
+import PropTypes from "prop-types";
 
+export function Modal({ closeModal, children }) {
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.code === "Escape") {
+        closeModal();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [closeModal]);
 
-export class Modal extends Component {
-  componentDidMount() {
-    window.addEventListener('keydown', this.handleKeyDown);
-  }
-
-  componentWillUnmount() {
-    window.removeEventListener('keydown', this.handleKeyDown);
-  }
-
-  handleClick = () => {
-    this.props.closeModal();
-  };
-
-  handleOverlayClick = e => {
+  const handleOverlayClick = (e) => {
     if (e.target === e.currentTarget) {
-      this.props.closeModal();
+      closeModal();
     }
   };
 
-  handleKeyDown = e => {
-    if (e.code === 'Escape') {
-      this.props.closeModal();
-    }
-  };
+  return (
+    <Overlay onClick={handleOverlayClick} tabIndex={0}>
+      <ModalWindow>{children}</ModalWindow>
 
-  render() {
-
-    return (
-      <Overlay
-        onClick={this.handleOverlayClick}
-        tabIndex={0}
-      >
-        <ModalWindow>{this.props.children}</ModalWindow>
-
-        <CloseModalBtn
-          type="button"
-          onClick={this.handleClick}
-        >
-          X
-        </CloseModalBtn>
-      </Overlay>
-    );
-  }
+      <CloseModalBtn type="button" onClick={closeModal}>
+        X
+      </CloseModalBtn>
+    </Overlay>
+  );
 }
 
 Modal.propTypes = {
-    closeModal: PropTypes.func.isRequired,
-  };
+  closeModal: PropTypes.func.isRequired,
+  children: PropTypes.array.isRequired,
+};
